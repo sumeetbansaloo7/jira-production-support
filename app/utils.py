@@ -1,0 +1,6 @@
+JIRA_TOKEN=""
+JIRA_FILTERS=""
+JIRA_API_URL=""
+
+config={}
+
