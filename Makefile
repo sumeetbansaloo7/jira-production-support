@@ -1,7 +1,7 @@
 .DEFAULT_GOAL:=docker-run
 
 IMAGE_NAME?=sumeetbansal007/jira-production-support
-IMAGE_TAG?=ffa6d707
+IMAGE_TAG?=ytvfyd
 PORT?=8000
 
 .PHONY: docker-build
@@ -10,7 +10,7 @@ docker-build:
 
 .PHONY: docker-run
 docker-run:
-	docker run  -p ${PORT}:${PORT}  --env-file .env ${IMAGE_NAME}:${IMAGE_TAG} 
+	docker run  -p ${PORT}:80  --env-file .env ${IMAGE_NAME}:${IMAGE_TAG} 
 
 .PHONY: run
 run:

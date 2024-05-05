@@ -28,7 +28,7 @@ metadata:
   name: jira-prod-supp
   namespace: infrastructure-engineering
 spec:
-  replicas: 5
+  replicas: 1
   selector:
     matchLabels:
       app: jira-prod-supp
@@ -42,7 +42,7 @@ spec:
       serviceAccountName: jira-prod-supp
       containers:
         - name: jira-prod-supp
-          image: sumeetbansal007/circuit_breaking_test
+          image: sumeetbansal007/jira-production-support:ytvfyd
           command: ["uvicorn", "main:app", "--host=0.0.0.0", "--port=8000"]
           imagePullPolicy: Always
           ports:
@@ -54,3 +54,6 @@ spec:
             requests:
               cpu: 400m
               memory: 512Mi
+          envFrom:
+            - secretRef:
+                name: jira-prod-supp-secret
