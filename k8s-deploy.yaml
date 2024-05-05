@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jira-prod-supp
+  namespace: infrastructure-engineering
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jira-prod-supp
+  namespace: infrastructure-engineering
+  labels:
+    app: jira-prod-supp
+    service: jira-prod-supp
+spec:
+  ports:
+    - port: 80
+      name: http
+      protocol: TCP
+      targetPort: 8000
+  type: ClusterIP
+  selector:
+    app: jira-prod-supp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jira-prod-supp
+  namespace: infrastructure-engineering
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: jira-prod-supp
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: jira-prod-supp
+        version: v1
+    spec:
+      serviceAccountName: jira-prod-supp
+      containers:
+        - name: jira-prod-supp
+          image: sumeetbansal007/circuit_breaking_test
+          command: ["uvicorn", "main:app", "--host=0.0.0.0", "--port=8000"]
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 400m
+              memory: 512Mi
