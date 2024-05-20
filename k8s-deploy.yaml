@@ -1,59 +1,181 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: jira-prod-supp
-  namespace: infrastructure-engineering
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jira-prod-supp
-  namespace: infrastructure-engineering
-  labels:
-    app: jira-prod-supp
-    service: jira-prod-supp
-spec:
-  ports:
-    - port: 80
-      name: http
-      protocol: TCP
-      targetPort: 8000
-  type: ClusterIP
-  selector:
-    app: jira-prod-supp
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: jira-prod-supp
-  namespace: infrastructure-engineering
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: jira-prod-supp
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: jira-prod-supp
-        version: v1
-    spec:
-      serviceAccountName: jira-prod-supp
-      containers:
-        - name: jira-prod-supp
-          image: sumeetbansal007/jira-production-support:ytvfyd
-          command: ["uvicorn", "main:app", "--host=0.0.0.0", "--port=8000"]
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8000
-          resources:
-            limits:
-              cpu: 1000m
-              memory: 1024Mi
-            requests:
-              cpu: 400m
-              memory: 512Mi
-          envFrom:
-            - secretRef:
-                name: jira-prod-supp-secret
+image:
+  repo: quay.io/kiali/kiali-operator
+  pullPolicy: Always
+  pullSecrets: []
+
+podLabels:
+  gopay.sh/pod: "infrastructure-engineering"
+  gopay.sh/stream: "foundation"
+
+replicaCount: 1
+
+metrics:
+  enabled: true
+
+debug:
+  enabled: true
+  verbosity: "1"
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "256Mi"
+  limits:
+    cpu: "1"
+    memory: "1Gi"
+
+clusterRoleCreator: true
+onlyViewOnlyMode: false
+
+custom_dashboards:
+  - enabled: true
+    name: vertx-custom
+    title: Vert.x Metrics
+    runtime: Vert.x
+    discoverOn: "vertx_http_server_connections"
+    items:
+      - chart:
+          name: "Server response time"
+          unit: "seconds"
+          spans: 6
+          metrics:
+            - metricName: "vertx_http_server_responseTime_seconds"
+              displayName: "Server response time"
+          dataType: "histogram"
+          aggregations:
+            - label: "path"
+              displayName: "Path"
+            - label: "method"
+              displayName: "Method"
+      - chart:
+          name: "Server active connections"
+          unit: ""
+          spans: 6
+          metricName: "vertx_http_server_connections"
+          dataType: "raw"
+      - include: "micrometer-1.1-jvm"
+cr:
+  create: true
+  name: kiali
+  namespace: ""
+  annotations: {}
+  spec:
+    kiali_feature_flags:
+      ui_defaults:
+        metrics_inbound:
+          aggregations:
+            - display_name: Request Host
+              label: request_host
+            - display_name: Route Name
+              label: route_name
+            - display_name: Request Method
+              label: request_method
+            - display_name: Request Protocol
+              label: request_protocol
+        metrics_outbound:
+          aggregations:
+            - display_name: Request Host
+              label: request_host
+            - display_name: Route Name
+              label: route_name
+            - display_name: Request Method
+              label: request_method
+            - display_name: Request Protocol
+              label: request_protocol
+    server:
+      metrics_enabled: true
+      metrics_port: 9090
+      audit_log: true
+      web_root: /kiali
+      web_fqdn: kiali.goku-eks-internal-02.apps.gtflabs.io
+      web_port: 443
+    auth:
+      strategy: "openid"
+      openid:
+        additional_request_params:
+          prompt: login
+        client_id: "1044799276712-4ebb1a993dhe58dibnt0cppt0r9s3ogt.apps.googleusercontent.com"
+        disable_rbac: true
+        issuer_uri: "https://accounts.google.com"
+        scopes: ["openid", "email"]
+        username_claim: "email"
+        allowed_domains:
+          - gojek.com
+          - gopay.co.id
+    deployment:
+      logger:
+        log_level: error
+        log_format: json
+      ingress:
+        enabled: false
+      accessible_namespaces:
+        - "**"
+      view_only_mode: true
+      replicas: 2
+      hpa:
+        api_version: "autoscaling/v1"
+        spec:
+          minReplicas: 2
+          maxReplicas: 3
+          targetCPUUtilizationPercentage: 80
+      resources:
+        requests:
+          cpu: 512m
+          memory: 1024Mi
+        limits:
+          cpu: 8
+          memory: 8Gi
+      secret_name: "kiali"
+      pod_labels:
+        gopay.sh/pod: "infrastructure-engineering"
+        gopay.sh/stream: "foundation"
+    external_services:
+      prometheus:
+        url: "http://vmselect-o11y-victoriametrics.observability:8481/select/0/prometheus"
+        health_check_url: "http://vmselect-o11y-victoriametrics.observability:8481/health"
+      grafana:
+        enabled: false
+      tracing:
+        enabled: true
+        use_grpc: true
+        provider: "jaeger"
+        namespace_selector: true
+        query_scope:
+          cluster_name: "goku-eks-internal-02"
+        query_timeout: 600
+        in_cluster_url: "http://jq.goku-eks-internal-02.gtflabs.io:80/jaeger"
+        url: "https://katulampa.golabs.io/tracing/"
+      custom_dashboards:
+        - enabled: true
+          name: vertx-custom
+          title: Vert.x Metrics
+          runtime: Vert.x
+          discoverOn: "vertx_http_server_connections"
+          items:
+            - chart:
+                name: "Server response time"
+                unit: "seconds"
+                spans: 6
+                metrics:
+                  - metricName: "vertx_http_server_responseTime_seconds"
+                    displayName: "Server response time"
+                dataType: "histogram"
+                aggregations:
+                  - label: "path"
+                    displayName: "Path"
+                  - label: "method"
+                    displayName: "Method"
+            - chart:
+                name: "Server active connections"
+                unit: ""
+                spans: 6
+                metricName: "vertx_http_server_connections"
+                dataType: "raw"
+            - include: "micrometer-1.1-jvm"
+    istio_namespace: istio-system
+    istio_component_namespaces:
+      prometheus: observability
+      istiod: istio-system
+    istio_labels:
+      app_label_name: "app.kubernetes.io/name"
+      version_label_name: "app.kubernetes.io/track"
